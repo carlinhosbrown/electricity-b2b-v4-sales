@@ -21,7 +21,3 @@ npx prisma db push
 npm run seed
 npm run dev
 ```
-
-## Usuario demo
-- Email: `admin@brokerpro.es`
-- Password: `broker1234`
