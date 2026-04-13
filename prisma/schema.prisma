@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  BROKER_MANAGER
+  BROKER_AGENT
+  ANALYST
+  CLIENT_VIEWER
+}
+
+enum OpportunityStage {
+  LEAD
+  QUALIFIED
+  AUDIT_REQUESTED
+  PRICED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String?
+  email        String      @unique
+  passwordHash String?
+  role         Role        @default(BROKER_AGENT)
+  brokerId     String?
+  broker       Broker?     @relation(fields: [brokerId], references: [id])
+  accounts     Account[]
+  sessions     Session[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Broker {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  brandName      String
+  primaryColor   String         @default("#0F766E")
+  logoUrl        String?
+  users          User[]
+  clients        Client[]
+  opportunities  Opportunity[]
+  proposals      Proposal[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Client {
+  id             String         @id @default(cuid())
+  brokerId       String
+  broker         Broker         @relation(fields: [brokerId], references: [id])
+  legalName      String
+  taxId          String?
+  email          String?
+  phone          String?
+  sector         String?
+  annualSpend    Float?
+  sites          Site[]
+  opportunities  Opportunity[]
+  documents      Document[]
+  proposals      Proposal[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Site {
+  id             String         @id @default(cuid())
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id])
+  name           String
+  cups           String?
+  address        String?
+  tariffAccess   String?
+  annualKwh      Float?
+  createdAt      DateTime       @default(now())
+}
+
+model Opportunity {
+  id             String           @id @default(cuid())
+  brokerId       String
+  clientId       String
+  title          String
+  stage          OpportunityStage @default(LEAD)
+  estimatedValue Float?
+  closeDate      DateTime?
+  notes          String?
+  broker         Broker           @relation(fields: [brokerId], references: [id])
+  client         Client           @relation(fields: [clientId], references: [id])
+  proposals      Proposal[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Proposal {
+  id               String         @id @default(cuid())
+  brokerId         String
+  clientId         String
+  opportunityId    String?
+  title            String
+  status           ProposalStatus @default(DRAFT)
+  annualCurrent    Float
+  annualProjected  Float
+  annualSavings    Float
+  pdfUrl           String?
+  sentAt           DateTime?
+  broker           Broker         @relation(fields: [brokerId], references: [id])
+  client           Client         @relation(fields: [clientId], references: [id])
+  opportunity      Opportunity?   @relation(fields: [opportunityId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Document {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id])
+  fileName     String
+  mimeType     String
+  storageKey   String
+  storageUrl   String
+  createdAt    DateTime  @default(now())
+}
+
+model TariffBusiness {
+  id             String   @id @default(cuid())
+  company        String
+  name           String
+  segment        String
+  accessTariff   String?
+  energyTerms    Json
+  powerTerms     Json
+  source         String
+  isActive       Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  source      String
+  status      String
+  message     String?
+  createdAt   DateTime @default(now())
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  sessionToken  String   @unique
+  userId        String
+  expires       DateTime
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
